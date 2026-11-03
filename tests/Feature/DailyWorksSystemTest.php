@@ -112,8 +112,8 @@ it('stores uploaded photos in public storage and keeps database records', functi
     $response = $this->actingAs($user)->post(route('daily-works.store'), [
         'contract_id' => $contract->id,
         'work_date' => '2025-03-16',
-        'work_type' => 'قشط الزفت المهترئ',
-        'unit' => 'متر',
+        'work_type' => 'قشط الزفت المهترئ ٥سم',
+        'unit' => 'متر مربع',
         'daily_quantity' => 125.5,
         'details' => 'اختبار رفع صور',
         'photos' => [
@@ -139,6 +139,135 @@ it('stores uploaded photos in public storage and keeps database records', functi
     $this->get('http://dailyworks.test/daily-works/'.$dailyWork->id)
         ->assertOk()
         ->assertSee('src="http://dailyworks.test/storage/'.$photo->photo_path.'"', false);
+});
+
+it('renders the work types with their mapped units on create and edit forms', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '350',
+        'contract_name' => 'عقد اختبار الوحدات',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-03-20',
+    ]);
+    $dailyWork = DailyWork::create([
+        'contract_id' => $contract->id,
+        'work_date' => '2025-03-21',
+        'work_type' => 'قشط الزفت المهترئ ٥سم',
+        'unit' => 'متر مربع',
+        'daily_quantity' => 10,
+    ]);
+    $expectedWorkTypeUnits = [
+        'قشط الزفت المهترئ ٥سم' => 'متر مربع',
+        'قشط الزفت المهترئ ١١سم' => 'متر مربع',
+        'تقديم ومد ودحي مجبول اسفلتي اهتراء سماكة ٥ سم' => 'متر مكعب',
+        'تقديم ومد ودحي مجبول اسفلتي اساس سماكة ٦سم' => 'متر مكعب',
+        'تقديم ومد ودحي مجبول اسفلتي اساس سماكة ٧سم' => 'متر مكعب',
+        'تقديم ومد ودحي مجبول اسفلتي بمجابل حرارية' => 'متر مكعب',
+        'قص وترقيع بالمجبول الاسفلتي' => 'متر مكعب',
+        'تقديم ورش مانع اسفلتي (ام سي زيرو) لزوم طبقة لاصقة' => 'متر مربع',
+        'طبقة تشرب(ام سي زيرو)' => 'متر مربع',
+        'ترحيل' => 'متر مكعب',
+        'تسوية بالمجبول الاسفلتي' => 'متر مكعب',
+        'تسوية جوانب الطريق بالكريدر' => 'متر مربع',
+        'استبدال طبقات اساس بحص مكسر' => 'متر مكعب',
+        'استبدال طبقات ما تحت اساس بحص مكسر' => 'متر مكعب',
+        'استبدال وصيانة حواجز بيتونية مكسرة' => 'متر طولي',
+    ];
+
+    foreach ([
+        route('daily-works.create'),
+        route('daily-works.edit', $dailyWork),
+    ] as $url) {
+        $response = $this->actingAs($user)->get($url);
+
+        $response->assertOk();
+        $document = new DOMDocument;
+        $document->loadHTML($response->getContent());
+        $xpath = new DOMXPath($document);
+        $workTypeOptions = $xpath->query('//select[@name="work_type"]/option[@data-unit]');
+        $renderedWorkTypeUnits = [];
+
+        foreach ($workTypeOptions as $option) {
+            $renderedWorkTypeUnits[$option->getAttribute('value')] = $option->getAttribute('data-unit');
+        }
+
+        expect($renderedWorkTypeUnits)->toBe($expectedWorkTypeUnits);
+
+        $unitOptions = $xpath->query('//select[@name="unit"]/option');
+        $renderedUnits = [];
+
+        foreach ($unitOptions as $option) {
+            $renderedUnits[] = $option->getAttribute('value');
+        }
+
+        expect($renderedUnits)->toBe(['', 'متر', 'متر مربع', 'متر مكعب', 'متر طولي']);
+        $response->assertSee("addEventListener('change', selectUnitForWorkType)", false);
+    }
+});
+
+it('accepts linear metres as the unit for broken concrete barrier maintenance', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '360',
+        'contract_name' => 'عقد الحواجز',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-03-22',
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('daily-works.store'), [
+            'contract_id' => $contract->id,
+            'work_date' => '2025-03-23',
+            'work_type' => 'استبدال وصيانة حواجز بيتونية مكسرة',
+            'unit' => 'متر طولي',
+            'daily_quantity' => 5,
+        ])
+        ->assertRedirect(route('daily-works.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('daily_works', [
+        'contract_id' => $contract->id,
+        'work_type' => 'استبدال وصيانة حواجز بيتونية مكسرة',
+        'unit' => 'متر طولي',
+    ]);
+});
+
+it('keeps saved work types editable after they are removed from the new-work options', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '370',
+        'contract_name' => 'عقد عمل قديم',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-03-24',
+    ]);
+    $dailyWork = DailyWork::create([
+        'contract_id' => $contract->id,
+        'work_date' => '2025-03-25',
+        'work_type' => 'قشط الزفت المهترئ',
+        'unit' => 'متر',
+        'daily_quantity' => 10,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('daily-works.update', $dailyWork), [
+            'contract_id' => $contract->id,
+            'work_date' => '2025-03-26',
+            'work_type' => 'قشط الزفت المهترئ',
+            'unit' => 'متر',
+            'daily_quantity' => 12,
+        ])
+        ->assertRedirect(route('daily-works.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('daily_works', [
+        'id' => $dailyWork->id,
+        'work_type' => 'قشط الزفت المهترئ',
+        'unit' => 'متر',
+        'daily_quantity' => 12,
+    ]);
 });
 
 it('uses a normal decimal quantity field without spinner controls', function () {
@@ -211,7 +340,7 @@ it('updates daily work fields successfully', function () {
         ->put(route('daily-works.update', $dailyWork), [
             'contract_id' => $contract->id,
             'work_date' => '2025-05-17',
-            'work_type' => 'ترحيل أتربة',
+            'work_type' => 'ترحيل',
             'unit' => 'متر مكعب',
             'daily_quantity' => 12.5,
             'details' => 'بعد التعديل',
@@ -222,7 +351,7 @@ it('updates daily work fields successfully', function () {
     $this->assertDatabaseHas('daily_works', [
         'id' => $dailyWork->id,
         'work_date' => '2025-05-17',
-        'work_type' => 'ترحيل أتربة',
+        'work_type' => 'ترحيل',
         'unit' => 'متر مكعب',
         'daily_quantity' => 12.5,
         'details' => 'بعد التعديل',

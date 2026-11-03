@@ -27,20 +27,20 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">نوع العمل</label>
-                    <select name="work_type" class="form-select" required>
+                    <select name="work_type" id="work-type-create" class="form-select" required>
                         <option value="">اختر نوع العمل</option>
-                        @foreach (['قشط الزفت المهترئ','تقديم ورش مانع اسفلتي MC0','ترحيل أتربة','تقديم وتنفيذ طبقة مجبول أسفلتي','تقديم ومد ودحي مجبول أسفلتي','قص وترقيع بالمجبول الأسفلتي','مد قميص أسفلتي'] as $type)
-                            <option value="{{ $type }}" {{ old('work_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+                        @foreach ($workTypeUnits as $type => $unit)
+                            <option value="{{ $type }}" data-unit="{{ $unit }}" {{ old('work_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">الوحدة</label>
-                    <select name="unit" class="form-select">
+                    <select name="unit" id="unit-create" class="form-select">
                         <option value="">فارغة</option>
-                        <option value="متر" {{ old('unit') == 'متر' ? 'selected' : '' }}>متر</option>
-                        <option value="متر مربع" {{ old('unit') == 'متر مربع' ? 'selected' : '' }}>متر مربع</option>
-                        <option value="متر مكعب" {{ old('unit') == 'متر مكعب' ? 'selected' : '' }}>متر مكعب</option>
+                        @foreach ($units as $unit)
+                            <option value="{{ $unit }}" {{ old('unit') == $unit ? 'selected' : '' }}>{{ $unit }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -66,8 +66,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const workType = document.getElementById('work-type-create');
+            const unit = document.getElementById('unit-create');
             const input = document.getElementById('photo-input-create');
             const preview = document.getElementById('photo-preview-create');
+
+            if (workType && unit) {
+                const selectUnitForWorkType = function () {
+                    const selectedUnit = workType.selectedOptions[0]?.dataset.unit;
+
+                    if (selectedUnit) {
+                        unit.value = selectedUnit;
+                    }
+                };
+
+                workType.addEventListener('change', selectUnitForWorkType);
+
+                @if (old('unit') === null)
+                    selectUnitForWorkType();
+                @endif
+            }
 
             if (!input || !preview) {
                 return;

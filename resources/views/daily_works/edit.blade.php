@@ -27,19 +27,22 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">نوع العمل</label>
-                    <select name="work_type" class="form-select" required>
-                        @foreach (['قشط الزفت المهترئ','تقديم ورش مانع اسفلتي MC0','ترحيل أتربة','تقديم وتنفيذ طبقة مجبول أسفلتي','تقديم ومد ودحي مجبول أسفلتي','قص وترقيع بالمجبول الأسفلتي','مد قميص أسفلتي'] as $type)
-                            <option value="{{ $type }}" {{ old('work_type', $dailyWork->work_type) == $type ? 'selected' : '' }}>{{ $type }}</option>
+                    <select name="work_type" id="work-type-edit" class="form-select" required>
+                        @if (! array_key_exists($dailyWork->work_type, $workTypeUnits))
+                            <option value="{{ $dailyWork->work_type }}" {{ old('work_type', $dailyWork->work_type) == $dailyWork->work_type ? 'selected' : '' }}>{{ $dailyWork->work_type }}</option>
+                        @endif
+                        @foreach ($workTypeUnits as $type => $unit)
+                            <option value="{{ $type }}" data-unit="{{ $unit }}" {{ old('work_type', $dailyWork->work_type) == $type ? 'selected' : '' }}>{{ $type }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">الوحدة</label>
-                    <select name="unit" class="form-select">
+                    <select name="unit" id="unit-edit" class="form-select">
                         <option value="">فارغة</option>
-                        <option value="متر" {{ old('unit', $dailyWork->unit) == 'متر' ? 'selected' : '' }}>متر</option>
-                        <option value="متر مربع" {{ old('unit', $dailyWork->unit) == 'متر مربع' ? 'selected' : '' }}>متر مربع</option>
-                        <option value="متر مكعب" {{ old('unit', $dailyWork->unit) == 'متر مكعب' ? 'selected' : '' }}>متر مكعب</option>
+                        @foreach ($units as $unit)
+                            <option value="{{ $unit }}" {{ old('unit', $dailyWork->unit) == $unit ? 'selected' : '' }}>{{ $unit }}</option>
+                        @endforeach
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -80,8 +83,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const workType = document.getElementById('work-type-edit');
+            const unit = document.getElementById('unit-edit');
             const input = document.getElementById('photo-input-edit');
             const preview = document.getElementById('photo-preview-edit');
+
+            if (workType && unit) {
+                const selectUnitForWorkType = function () {
+                    const selectedUnit = workType.selectedOptions[0]?.dataset.unit;
+
+                    if (selectedUnit) {
+                        unit.value = selectedUnit;
+                    }
+                };
+
+                workType.addEventListener('change', selectUnitForWorkType);
+
+                @if (old('unit') === null)
+                    selectUnitForWorkType();
+                @endif
+            }
 
             if (!input || !preview) {
                 return;
