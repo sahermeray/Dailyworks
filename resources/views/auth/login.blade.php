@@ -9,7 +9,7 @@
                 <div class="card p-4">
                     <h2 class="mb-4 text-center">تسجيل الدخول</h2>
 
-                    <form method="POST" action="{{ route('login.post') }}">
+                    <form method="POST" action="{{ route('login.post') }}" data-turbo="false">
                         @csrf
                         <div class="mb-3">
                             <label for="email" class="form-label">البريد الإلكتروني</label>

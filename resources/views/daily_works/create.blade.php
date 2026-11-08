@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4">
-        <form action="{{ route('daily-works.store') }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('daily-works.store') }}" method="POST" enctype="multipart/form-data" data-turbo="false">
             @csrf
             <div class="row g-3">
                 <div class="col-md-3">
@@ -27,7 +27,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">نوع العمل</label>
-                    <select name="work_type" id="work-type-create" class="form-select" required>
+                    <select name="work_type" id="work-type-create" class="form-select" data-auto-select-unit="{{ old('unit') === null ? 'true' : 'false' }}" required>
                         <option value="">اختر نوع العمل</option>
                         @foreach ($workTypeUnits as $type => $unit)
                             <option value="{{ $type }}" data-unit="{{ $unit }}" {{ old('work_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
@@ -64,57 +64,4 @@
         </form>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const workType = document.getElementById('work-type-create');
-            const unit = document.getElementById('unit-create');
-            const input = document.getElementById('photo-input-create');
-            const preview = document.getElementById('photo-preview-create');
-
-            if (workType && unit) {
-                const selectUnitForWorkType = function () {
-                    const selectedUnit = workType.selectedOptions[0]?.dataset.unit;
-
-                    if (selectedUnit) {
-                        unit.value = selectedUnit;
-                    }
-                };
-
-                workType.addEventListener('change', selectUnitForWorkType);
-
-                @if (old('unit') === null)
-                    selectUnitForWorkType();
-                @endif
-            }
-
-            if (!input || !preview) {
-                return;
-            }
-
-            input.addEventListener('change', function (event) {
-                preview.innerHTML = '';
-
-                Array.from(event.target.files || []).forEach((file) => {
-                    if (!file.type.startsWith('image/')) {
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = function (loadEvent) {
-                        const img = document.createElement('img');
-                        img.src = loadEvent.target.result;
-                        img.alt = 'معاينة الصورة';
-                        img.style.width = '70px';
-                        img.style.height = '70px';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '8px';
-                        img.style.border = '1px solid #dfe3eb';
-                        preview.appendChild(img);
-                    };
-
-                    reader.readAsDataURL(file);
-                });
-            });
-        });
-    </script>
 @endsection

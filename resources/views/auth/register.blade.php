@@ -9,7 +9,7 @@
                 <div class="card p-4">
                     <h2 class="mb-4 text-center">إنشاء حساب جديد</h2>
 
-                    <form method="POST" action="{{ route('register.post') }}">
+                    <form method="POST" action="{{ route('register.post') }}" data-turbo="false">
                         @csrf
                         <div class="mb-3">
                             <label for="name" class="form-label">الاسم</label>

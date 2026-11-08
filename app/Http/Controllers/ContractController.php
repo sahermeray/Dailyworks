@@ -57,7 +57,10 @@ class ContractController extends Controller
 
     public function show(Contract $contract)
     {
-        $contract->load(['supervisoryMembers', 'dailyWorks' => fn ($query) => $query->orderBy('work_date', 'desc')]);
+        $contract->load([
+            'supervisoryMembers',
+            'dailyWorks' => fn ($query) => $query->with('photos')->orderBy('work_date', 'desc'),
+        ]);
 
         return view('contracts.show', compact('contract'));
     }
@@ -91,7 +94,7 @@ class ContractController extends Controller
     public function destroy(Contract $contract)
     {
         DB::transaction(function () use ($contract) {
-            foreach ($contract->dailyWorks()->with('photos')->get() as $dailyWork) {
+            foreach ($contract->dailyWorks()->get() as $dailyWork) {
                 $this->photoService->deletePhotosForDailyWork($dailyWork->id);
                 $dailyWork->delete();
             }

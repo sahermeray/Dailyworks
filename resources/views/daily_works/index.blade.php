@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4 mb-4">
-        <form method="GET" action="{{ route('daily-works.index') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ route('daily-works.index') }}" class="row g-3 align-items-end" data-turbo="false">
             <div class="col-md-3">
                 <label class="form-label">العقد</label>
                 <select name="contract_id" class="form-select">
@@ -61,14 +61,6 @@
                 </thead>
                 <tbody>
                 @forelse ($dailyWorks as $dailyWork)
-                    @php
-                        $total = app(App\Services\DailyWorkTotalService::class)->cumulativeForContract(
-                            $dailyWork->contract_id,
-                            $dailyWork->work_type,
-                            $dailyWork->unit,
-                            $dailyWork->work_date->format('Y-m-d')
-                        );
-                    @endphp
                     <tr>
                         <td>{{ $dailyWork->work_date?->format('Y-m-d') }}</td>
                         <td>{{ $dailyWork->contract?->contract_number }}</td>
@@ -76,7 +68,7 @@
                         <td>{{ $dailyWork->work_type }}</td>
                         <td>{{ $dailyWork->unit ?: 'غير محدد' }}</td>
                         <td>{{ $dailyWork->daily_quantity ?? '—' }}</td>
-                        <td>{{ number_format($total, 3) }}</td>
+                        <td>{{ number_format($dailyWork->cumulative_quantity, 3) }}</td>
                         <td style="max-width: 180px;">{{ $dailyWork->details ?: '—' }}</td>
                         <td>
                             @foreach ($dailyWork->photos as $photo)
@@ -89,7 +81,7 @@
                             <div class="d-flex flex-column gap-2">
                                 <a href="{{ route('daily-works.show', $dailyWork) }}" class="btn btn-sm btn-info text-white">عرض</a>
                                 <a href="{{ route('daily-works.edit', $dailyWork) }}" class="btn btn-sm btn-warning">تعديل</a>
-                                <form action="{{ route('daily-works.destroy', $dailyWork) }}" method="POST" onsubmit="return confirm('هل أنت متأكد من حذف هذا البند؟');">
+                                <form action="{{ route('daily-works.destroy', $dailyWork) }}" method="POST" data-turbo="false" onsubmit="return confirm('هل أنت متأكد من حذف هذا البند؟');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-danger w-100">حذف</button>

@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4">
-        <form action="{{ route('daily-works.update', $dailyWork) }}" method="POST" enctype="multipart/form-data">
+        <form action="{{ route('daily-works.update', $dailyWork) }}" method="POST" enctype="multipart/form-data" data-turbo="false">
             @csrf
             @method('PUT')
             <div class="row g-3">
@@ -27,7 +27,7 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">نوع العمل</label>
-                    <select name="work_type" id="work-type-edit" class="form-select" required>
+                    <select name="work_type" id="work-type-edit" class="form-select" data-auto-select-unit="{{ old('unit') === null ? 'true' : 'false' }}" required>
                         @if (! array_key_exists($dailyWork->work_type, $workTypeUnits))
                             <option value="{{ $dailyWork->work_type }}" {{ old('work_type', $dailyWork->work_type) == $dailyWork->work_type ? 'selected' : '' }}>{{ $dailyWork->work_type }}</option>
                         @endif
@@ -71,7 +71,7 @@
                     @foreach ($dailyWork->photos as $photo)
                         <div class="col-md-2 text-center">
                             <img src="{{ asset('storage/'.$photo->photo_path) }}" class="img-fluid rounded mb-2" style="height:100px;object-fit:cover;">
-                            <form action="{{ route('daily-works.delete-photo', $photo) }}" method="POST" onsubmit="return confirm('هل تريد حذف هذه الصورة؟');">
+                            <form action="{{ route('daily-works.delete-photo', $photo) }}" method="POST" data-turbo="false" onsubmit="return confirm('هل تريد حذف هذه الصورة؟');">
                                 @csrf
                                 <button type="submit" class="btn btn-sm btn-danger">حذف الصورة</button>
                             </form>
@@ -81,57 +81,4 @@
             </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const workType = document.getElementById('work-type-edit');
-            const unit = document.getElementById('unit-edit');
-            const input = document.getElementById('photo-input-edit');
-            const preview = document.getElementById('photo-preview-edit');
-
-            if (workType && unit) {
-                const selectUnitForWorkType = function () {
-                    const selectedUnit = workType.selectedOptions[0]?.dataset.unit;
-
-                    if (selectedUnit) {
-                        unit.value = selectedUnit;
-                    }
-                };
-
-                workType.addEventListener('change', selectUnitForWorkType);
-
-                @if (old('unit') === null)
-                    selectUnitForWorkType();
-                @endif
-            }
-
-            if (!input || !preview) {
-                return;
-            }
-
-            input.addEventListener('change', function (event) {
-                preview.innerHTML = '';
-
-                Array.from(event.target.files || []).forEach((file) => {
-                    if (!file.type.startsWith('image/')) {
-                        return;
-                    }
-
-                    const reader = new FileReader();
-                    reader.onload = function (loadEvent) {
-                        const img = document.createElement('img');
-                        img.src = loadEvent.target.result;
-                        img.alt = 'معاينة الصورة';
-                        img.style.width = '70px';
-                        img.style.height = '70px';
-                        img.style.objectFit = 'cover';
-                        img.style.borderRadius = '8px';
-                        img.style.border = '1px solid #dfe3eb';
-                        preview.appendChild(img);
-                    };
-
-                    reader.readAsDataURL(file);
-                });
-            });
-        });
-    </script>
 @endsection

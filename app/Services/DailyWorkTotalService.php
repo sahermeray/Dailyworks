@@ -3,11 +3,30 @@
 namespace App\Services;
 
 use App\Models\DailyWork;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
 class DailyWorkTotalService
 {
+    public function queryWithCumulativeQuantities(): Builder
+    {
+        $dailyWorksWithCumulativeQuantities = DailyWork::query()
+            ->select('daily_works.*')
+            ->selectRaw(
+                'CASE WHEN unit IS NULL OR unit = ? THEN '
+                    .'SUM(daily_quantity) OVER (PARTITION BY contract_id, work_type ORDER BY work_date) '
+                    .'ELSE SUM(daily_quantity) OVER (PARTITION BY contract_id, work_type, unit ORDER BY work_date) '
+                    .'END AS cumulative_quantity',
+                [''],
+            );
+
+        $query = DailyWork::query();
+        $query->getQuery()->fromSub($dailyWorksWithCumulativeQuantities->toBase(), 'daily_works');
+
+        return $query;
+    }
+
     /**
      * @return Collection<int, object>
      */

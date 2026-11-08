@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4 mb-4">
-        <form method="GET" action="{{ route('contracts.index') }}" class="row g-2 align-items-end">
+        <form method="GET" action="{{ route('contracts.index') }}" class="row g-2 align-items-end" data-turbo="false">
             <div class="col-md-10">
                 <label class="form-label">بحث سريع</label>
                 <input type="text" name="search" value="{{ request('search') }}" class="form-control" placeholder="رقم العقد أو اسمه">
@@ -53,7 +53,7 @@
                             <div class="d-flex gap-2 flex-wrap">
                                 <a href="{{ route('contracts.show', $contract) }}" class="btn btn-sm btn-info text-white">عرض</a>
                                 <a href="{{ route('contracts.edit', $contract) }}" class="btn btn-sm btn-warning">تعديل</a>
-                                <form action="{{ route('contracts.destroy', $contract) }}" method="POST" onsubmit="return confirm('هل أنت متأكد؟ سيتم حذف جميع الأعمال والصور التابعة لهذا العقد بشكل نهائي.');">
+                                <form action="{{ route('contracts.destroy', $contract) }}" method="POST" data-turbo="false" onsubmit="return confirm('هل أنت متأكد؟ سيتم حذف جميع الأعمال والصور التابعة لهذا العقد بشكل نهائي.');">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="btn btn-sm btn-danger">حذف</button>

@@ -6,6 +6,7 @@ use App\Models\DailyWorkPhoto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
@@ -97,6 +98,96 @@ it('calculates cumulative quantities by contract and work type without mixing un
     $this->assertSame(40, $contractB->dailyWorks()->where('work_type', 'قشط الزفت المهترئ')->where('unit', 'متر')->sum('daily_quantity'));
 });
 
+it('renders report cumulative totals without querying once per row', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '150',
+        'contract_name' => 'عقد التقرير',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-01-10',
+    ]);
+
+    foreach ([
+        ['2025-02-01', 'متر', 100],
+        ['2025-02-01', 'متر', 10],
+        ['2025-02-01', 'متر مكعب', 50],
+        ['2025-02-01', null, 25],
+        ['2025-02-02', 'متر', 20],
+        ['2025-02-02', null, 5],
+    ] as [$workDate, $unit, $quantity]) {
+        DailyWork::create([
+            'contract_id' => $contract->id,
+            'work_date' => $workDate,
+            'work_type' => 'قشط الزفت المهترئ',
+            'unit' => $unit,
+            'daily_quantity' => $quantity,
+        ]);
+    }
+
+    $aggregateQueryCount = 0;
+    DB::listen(function ($query) use (&$aggregateQueryCount): void {
+        if (str_contains(strtolower($query->sql), 'sum(')) {
+            $aggregateQueryCount++;
+        }
+    });
+
+    $indexResponse = $this->actingAs($user)->get(route('reports.index'));
+    $printResponse = $this->actingAs($user)->get(route('reports.print'));
+
+    $indexResponse->assertOk()
+        ->assertSee('130.000')
+        ->assertSee('210.000')
+        ->assertSee('185.000');
+    $printResponse->assertOk()
+        ->assertSee('130.000')
+        ->assertSee('210.000')
+        ->assertSee('185.000');
+
+    expect($aggregateQueryCount)->toBeLessThanOrEqual(4);
+});
+
+it('loads contract work photos in one query', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '160',
+        'contract_name' => 'عقد الصور',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-01-10',
+    ]);
+
+    foreach (['first.jpg', 'second.jpg'] as $fileName) {
+        $dailyWork = DailyWork::create([
+            'contract_id' => $contract->id,
+            'work_date' => '2025-02-01',
+            'work_type' => 'قشط الزفت المهترئ',
+            'unit' => 'متر',
+            'daily_quantity' => 10,
+        ]);
+
+        DailyWorkPhoto::create([
+            'daily_work_id' => $dailyWork->id,
+            'photo_path' => 'daily-works/'.$dailyWork->id.'/'.$fileName,
+            'original_file_name' => $fileName,
+        ]);
+    }
+
+    $photoQueryCount = 0;
+    DB::listen(function ($query) use (&$photoQueryCount): void {
+        if (str_contains(strtolower($query->sql), 'daily_work_photos')) {
+            $photoQueryCount++;
+        }
+    });
+
+    $response = $this->actingAs($user)->get(route('contracts.show', $contract));
+
+    $response->assertOk()
+        ->assertSee('first.jpg')
+        ->assertSee('second.jpg');
+    expect($photoQueryCount)->toBe(1);
+});
+
 it('stores uploaded photos in public storage and keeps database records', function () {
     $user = User::factory()->create();
     Storage::fake('public', ['url' => 'http://localhost:8000/storage']);
@@ -182,6 +273,7 @@ it('renders the work types with their mapped units on create and edit forms', fu
         $response = $this->actingAs($user)->get($url);
 
         $response->assertOk();
+        $response->assertSee('enctype="multipart/form-data" data-turbo="false"', false);
         $document = new DOMDocument;
         $document->loadHTML($response->getContent());
         $xpath = new DOMXPath($document);
@@ -202,7 +294,7 @@ it('renders the work types with their mapped units on create and edit forms', fu
         }
 
         expect($renderedUnits)->toBe(['', 'متر', 'متر مربع', 'متر مكعب', 'متر طولي']);
-        $response->assertSee("addEventListener('change', selectUnitForWorkType)", false);
+        $response->assertSee('data-auto-select-unit="true"', false);
     }
 });
 

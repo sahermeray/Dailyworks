@@ -3,8 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    @auth
+        <meta name="turbo-cache-control" content="no-cache">
+    @endauth
     <title>@yield('title', 'DailyWorks')</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    @vite('resources/js/app.js')
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
     <style>
         body {
             font-family: 'Tahoma', 'Segoe UI', sans-serif;
@@ -106,7 +111,7 @@
                 </nav>
 
                 <div class="mt-4 px-2">
-                    <form action="{{ route('logout') }}" method="POST">
+                    <form action="{{ route('logout') }}" method="POST" data-turbo="false">
                         @csrf
                         <button type="submit" class="btn btn-outline-light w-100">تسجيل الخروج</button>
                     </form>
@@ -136,7 +141,5 @@
         </main>
     </div>
 </div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

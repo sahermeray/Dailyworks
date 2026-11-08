@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4 mb-4">
-        <form method="GET" action="{{ route('reports.index') }}" class="row g-3 align-items-end">
+        <form method="GET" action="{{ route('reports.index') }}" class="row g-3 align-items-end" data-turbo="false">
             <div class="col-md-3">
                 <label class="form-label">تاريخ البداية</label>
                 <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-control">
@@ -50,14 +50,6 @@
                 </thead>
                 <tbody>
                 @forelse ($dailyWorks as $dailyWork)
-                    @php
-                        $qty = app(App\Services\DailyWorkTotalService::class)->cumulativeForContract(
-                            $dailyWork->contract_id,
-                            $dailyWork->work_type,
-                            $dailyWork->unit,
-                            $dailyWork->work_date->format('Y-m-d')
-                        );
-                    @endphp
                     <tr>
                         <td>{{ $dailyWork->work_date?->format('Y-m-d') }}</td>
                         <td>{{ $dailyWork->contract?->contract_number }}</td>
@@ -65,7 +57,7 @@
                         <td>{{ $dailyWork->work_type }}</td>
                         <td>{{ $dailyWork->unit ?: 'غير محدد' }}</td>
                         <td>{{ $dailyWork->daily_quantity ?? '—' }}</td>
-                        <td>{{ number_format($qty, 3) }}</td>
+                        <td>{{ number_format($dailyWork->cumulative_quantity, 3) }}</td>
                         <td>{{ $dailyWork->details ?: '—' }}</td>
                     </tr>
                 @empty

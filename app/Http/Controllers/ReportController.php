@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contract;
-use App\Models\DailyWork;
 use App\Services\DailyWorkTotalService;
 use Illuminate\Http\Request;
 
@@ -18,7 +17,9 @@ class ReportController extends Controller
     {
         $contracts = Contract::orderBy('contract_number')->get();
 
-        $query = DailyWork::query()->with('contract')->orderByDesc('work_date');
+        $query = $this->totalService->queryWithCumulativeQuantities()
+            ->with('contract')
+            ->orderByDesc('work_date');
 
         if ($request->filled('contract_id')) {
             $query->where('contract_id', $request->contract_id);
@@ -47,7 +48,9 @@ class ReportController extends Controller
 
     public function print(Request $request)
     {
-        $query = DailyWork::query()->with('contract')->orderBy('work_date');
+        $query = $this->totalService->queryWithCumulativeQuantities()
+            ->with('contract')
+            ->orderBy('work_date');
 
         if ($request->filled('contract_id')) {
             $query->where('contract_id', $request->contract_id);

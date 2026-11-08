@@ -60,12 +60,7 @@
     <tbody>
     @foreach ($dailyWorks as $dailyWork)
         @php
-            $cumulative = app(App\Services\DailyWorkTotalService::class)->cumulativeForContract(
-                $dailyWork->contract_id,
-                $dailyWork->work_type,
-                $dailyWork->unit,
-                $dailyWork->work_date->format('Y-m-d')
-            );
+            $cumulative = $dailyWork->cumulative_quantity;
         @endphp
         <tr>
             <td>{{ $dailyWork->work_date?->format('Y-m-d') }}</td>

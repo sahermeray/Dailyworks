@@ -23,7 +23,9 @@ class DailyWorkController extends Controller
 
     public function index(Request $request)
     {
-        $query = DailyWork::query()->with(['contract', 'photos'])->orderByDesc('work_date');
+        $query = $this->totalService->queryWithCumulativeQuantities()
+            ->with(['contract', 'photos'])
+            ->orderByDesc('work_date');
 
         if ($request->filled('contract_id')) {
             $query->where('contract_id', $request->input('contract_id'));

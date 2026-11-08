@@ -9,7 +9,7 @@
     </div>
 
     <div class="card p-4">
-        <form action="{{ route('contracts.store') }}" method="POST">
+        <form action="{{ route('contracts.store') }}" method="POST" data-turbo="false">
             @csrf
             <div class="row g-3">
                 <div class="col-md-4">
@@ -47,19 +47,4 @@
         </form>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const wrapper = document.getElementById('members-wrapper');
-            const button = document.getElementById('add-member-btn');
-
-            button.addEventListener('click', function () {
-                const input = document.createElement('input');
-                input.type = 'text';
-                input.name = 'supervisory_members[]';
-                input.className = 'form-control mb-2';
-                input.placeholder = 'اسم عضو الإشراف';
-                wrapper.appendChild(input);
-            });
-        });
-    </script>
 @endsection
