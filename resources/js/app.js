@@ -9,17 +9,13 @@ document.addEventListener('turbo:load', () => {
         const workType = document.getElementById(`work-type-${formType}`);
         const unit = document.getElementById(`unit-${formType}`);
 
-        if (!workType || !unit || workType.dataset.autoSelectUnit !== 'true' || workType.dataset.unitInitialized === 'true') {
+        if (!workType || !unit) {
             return;
         }
 
         const selectedUnit = workType.selectedOptions[0]?.dataset.unit;
 
-        if (selectedUnit) {
-            unit.value = selectedUnit;
-        }
-
-        workType.dataset.unitInitialized = 'true';
+        unit.value = selectedUnit ?? '';
     });
 });
 
@@ -72,8 +68,8 @@ document.addEventListener('change', (event) => {
     const unit = document.getElementById(unitId);
     const selectedUnit = target.selectedOptions[0]?.dataset.unit;
 
-    if (unit && selectedUnit) {
-        unit.value = selectedUnit;
+    if (unit) {
+        unit.value = selectedUnit ?? '';
     }
 });
 

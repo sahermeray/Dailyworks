@@ -23,8 +23,8 @@
                 <label class="form-label">نوع العمل</label>
                 <select name="work_type" class="form-select">
                     <option value="">الكل</option>
-                    @foreach ($workTypeUnits as $type => $unit)
-                        <option value="{{ $type }}" {{ request('work_type') == $type ? 'selected' : '' }}>{{ $type }}</option>
+                    @foreach ($workTypeNames as $workTypeName)
+                        <option value="{{ $workTypeName }}" {{ request('work_type') == $workTypeName ? 'selected' : '' }}>{{ $workTypeName }}</option>
                     @endforeach
                 </select>
             </div>

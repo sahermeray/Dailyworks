@@ -5,6 +5,7 @@ use App\Http\Controllers\ContractController;
 use App\Http\Controllers\DailyWorkController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\WorkTypeController;
 use App\Http\Middleware\PreventBackHistory;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +23,7 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     Route::resource('contracts', ContractController::class);
+    Route::resource('work-types', WorkTypeController::class)->except(['show', 'destroy']);
     Route::resource('daily-works', DailyWorkController::class);
     Route::post('/daily-works/photos/{photo}/delete', [DailyWorkController::class, 'deletePhoto'])->name('daily-works.delete-photo');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');

@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateDailyWorkRequest;
 use App\Models\Contract;
 use App\Models\DailyWork;
 use App\Models\DailyWorkPhoto;
+use App\Models\WorkType;
 use App\Services\DailyWorkPhotoService;
 use App\Services\DailyWorkTotalService;
 use Illuminate\Http\Request;
@@ -45,9 +46,15 @@ class DailyWorkController extends Controller
 
         $dailyWorks = $query->paginate(15);
         $contracts = Contract::orderBy('contract_number')->get();
-        $workTypeUnits = DailyWork::WORK_TYPE_UNITS;
+        $workTypeNames = WorkType::query()
+            ->orderBy('name')
+            ->pluck('name')
+            ->merge(DailyWork::query()->whereNotNull('work_type')->distinct()->pluck('work_type'))
+            ->unique()
+            ->sort()
+            ->values();
 
-        return view('daily_works.index', compact('dailyWorks', 'contracts', 'workTypeUnits'));
+        return view('daily_works.index', compact('dailyWorks', 'contracts', 'workTypeNames'));
     }
 
     public function create(Request $request)
@@ -57,14 +64,22 @@ class DailyWorkController extends Controller
         return view('daily_works.create', [
             'contracts' => Contract::orderBy('contract_number')->get(),
             'selectedContractId' => $selectedContractId,
-            'workTypeUnits' => DailyWork::WORK_TYPE_UNITS,
-            'units' => DailyWork::UNITS,
+            'workTypes' => WorkType::query()->where('is_active', true)->orderBy('name')->get(),
         ]);
     }
 
     public function store(StoreDailyWorkRequest $request)
     {
-        $dailyWork = DailyWork::create($request->validated());
+        $validated = $request->validated();
+        $workType = WorkType::query()->whereKey($validated['work_type_id'])->where('is_active', true)->firstOrFail();
+        unset($validated['work_type_id']);
+
+        $dailyWork = DailyWork::create([
+            ...$validated,
+            'work_type_id' => $workType->id,
+            'work_type' => $workType->name,
+            'unit' => $workType->unit,
+        ]);
 
         if ($request->hasFile('photos')) {
             $this->photoService->storePhotosForDailyWork($dailyWork->id, $request->file('photos'));
@@ -88,17 +103,31 @@ class DailyWorkController extends Controller
 
     public function edit(DailyWork $dailyWork)
     {
+        $workTypes = WorkType::query()
+            ->where('is_active', true)
+            ->when($dailyWork->work_type_id, fn ($query) => $query->orWhereKey($dailyWork->work_type_id))
+            ->orderBy('name')
+            ->get();
+
         return view('daily_works.edit', [
             'dailyWork' => $dailyWork->load(['contract', 'photos']),
             'contracts' => Contract::orderBy('contract_number')->get(),
-            'workTypeUnits' => DailyWork::WORK_TYPE_UNITS,
-            'units' => DailyWork::UNITS,
+            'workTypes' => $workTypes,
         ]);
     }
 
     public function update(UpdateDailyWorkRequest $request, DailyWork $dailyWork)
     {
-        $dailyWork->update($request->validated());
+        $validated = $request->validated();
+        $workType = WorkType::query()->whereKey($validated['work_type_id'])->firstOrFail();
+        unset($validated['work_type_id']);
+
+        $dailyWork->update([
+            ...$validated,
+            'work_type_id' => $workType->id,
+            'work_type' => $workType->name,
+            'unit' => $workType->unit,
+        ]);
 
         if ($request->hasFile('photos')) {
             $this->photoService->storePhotosForDailyWork($dailyWork->id, $request->file('photos'));

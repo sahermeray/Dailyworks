@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Contract;
+use App\Models\DailyWork;
+use App\Models\WorkType;
 use App\Services\DailyWorkTotalService;
 use Illuminate\Http\Request;
 
@@ -42,6 +44,13 @@ class ReportController extends Controller
         return view('reports.index', [
             'dailyWorks' => $dailyWorks,
             'contracts' => $contracts,
+            'workTypeNames' => WorkType::query()
+                ->orderBy('name')
+                ->pluck('name')
+                ->merge(DailyWork::query()->whereNotNull('work_type')->distinct()->pluck('work_type'))
+                ->unique()
+                ->sort()
+                ->values(),
             'filters' => $request->only(['contract_id', 'work_type', 'start_date', 'end_date']),
         ]);
     }

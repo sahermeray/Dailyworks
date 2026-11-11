@@ -106,6 +106,7 @@
                 <nav class="nav flex-column">
                     <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" href="{{ route('dashboard') }}">الرئيسية</a>
                     <a class="nav-link {{ request()->routeIs('contracts.*') ? 'active' : '' }}" href="{{ route('contracts.index') }}">إدارة العقود</a>
+                    <a class="nav-link {{ request()->routeIs('work-types.*') ? 'active' : '' }}" href="{{ route('work-types.index') }}">إدارة أنواع العمل</a>
                     <a class="nav-link {{ request()->routeIs('daily-works.*') ? 'active' : '' }}" href="{{ route('daily-works.index') }}">إدخال الأعمال اليومية</a>
                     <a class="nav-link {{ request()->routeIs('reports.*') ? 'active' : '' }}" href="{{ route('reports.index') }}">التقارير والطباعة</a>
                 </nav>

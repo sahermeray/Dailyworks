@@ -46,7 +46,11 @@ class DailyWorkTotalService
             ->where('work_type', $workType)
             ->whereDate('work_date', '<=', $asOfDate ?? now()->toDateString());
 
-        if ($unit !== null && $unit !== '') {
+        if ($unit === null || $unit === '') {
+            $query->where(function ($builder) {
+                $builder->whereNull('unit')->orWhere('unit', '');
+            });
+        } else {
             $query->where('unit', $unit);
         }
 

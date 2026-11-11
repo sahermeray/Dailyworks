@@ -4,6 +4,8 @@ use App\Models\Contract;
 use App\Models\DailyWork;
 use App\Models\DailyWorkPhoto;
 use App\Models\User;
+use App\Models\WorkType;
+use App\Services\DailyWorkTotalService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +38,219 @@ it('prevents duplicate contract numbers and stores supervisory members', functio
             'supervisory_members' => ['سالم'],
         ])
         ->assertSessionHasErrors('contract_number');
+});
+
+it('creates and edits work types with a measurement unit', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->post(route('work-types.store'), [
+            'name' => 'أعمال اختبارية',
+            'unit' => 'm³',
+            'is_active' => 1,
+        ])
+        ->assertRedirect(route('work-types.index'))
+        ->assertSessionHasNoErrors();
+
+    $workType = WorkType::query()->where('name', 'أعمال اختبارية')->firstOrFail();
+    $this->assertDatabaseHas('work_types', [
+        'name' => 'أعمال اختبارية',
+        'unit' => 'm³',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->put(route('work-types.update', $workType), [
+            'name' => 'أعمال اختبارية معدلة',
+            'unit' => 'ton',
+            'is_active' => 1,
+        ])
+        ->assertRedirect(route('work-types.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('work_types', [
+        'id' => $workType->id,
+        'name' => 'أعمال اختبارية معدلة',
+        'unit' => 'ton',
+        'is_active' => true,
+    ]);
+    $this->assertDatabaseHas('work_types', [
+        'name' => 'قشط الزفت المهترئ ٥سم',
+        'unit' => 'متر مربع',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->post(route('work-types.store'), [
+            'name' => 'أعمال اختبارية معدلة',
+            'unit' => 'm²',
+            'is_active' => 1,
+        ])
+        ->assertSessionHasErrors('name');
+});
+
+it('renders dynamic work types and saves the selected type unit instead of submitted unit data', function () {
+    $user = User::factory()->create();
+    $workType = WorkType::create([
+        'name' => 'حفر اختباري',
+        'unit' => 'm³',
+        'is_active' => true,
+    ]);
+    $contract = Contract::create([
+        'contract_number' => '105',
+        'contract_name' => 'عقد الأنواع الديناميكية',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-01-10',
+    ]);
+
+    $this->actingAs($user)
+        ->withSession(['_old_input' => ['work_type_id' => $workType->id]])
+        ->get(route('daily-works.create'))
+        ->assertOk()
+        ->assertSee('name="work_type_id"', false)
+        ->assertSee('value="'.$workType->id.'" data-unit="m³" selected', false)
+        ->assertSee('id="unit-create" class="form-control" value="m³" readonly', false);
+
+    $this->actingAs($user)
+        ->post(route('daily-works.store'), [
+            'contract_id' => $contract->id,
+            'work_date' => '2025-02-01',
+            'work_type_id' => $workType->id,
+            'unit' => 'ton',
+            'daily_quantity' => 20,
+        ])
+        ->assertRedirect(route('daily-works.index'))
+        ->assertSessionHasNoErrors();
+
+    $this->assertDatabaseHas('daily_works', [
+        'contract_id' => $contract->id,
+        'work_type_id' => $workType->id,
+        'work_type' => 'حفر اختباري',
+        'unit' => 'm³',
+        'daily_quantity' => 20,
+    ]);
+});
+
+it('keeps new work type cumulative report totals separate by type and unit', function () {
+    $user = User::factory()->create();
+    $contract = Contract::create([
+        'contract_number' => '106',
+        'contract_name' => 'عقد الإجماليات',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-01-10',
+    ]);
+    $excavation = WorkType::create(['name' => 'حفر cumulative', 'unit' => 'm³', 'is_active' => true]);
+    $concrete = WorkType::create(['name' => 'خرسانة cumulative', 'unit' => 'm³', 'is_active' => true]);
+    $painting = WorkType::create(['name' => 'دهان cumulative', 'unit' => 'm²', 'is_active' => true]);
+
+    foreach ([
+        [$excavation, '2025-02-01', 20],
+        [$excavation, '2025-02-02', 15],
+        [$concrete, '2025-02-01', 8],
+        [$painting, '2025-02-01', 100],
+        [$painting, '2025-02-02', 50],
+    ] as [$workType, $workDate, $quantity]) {
+        DailyWork::create([
+            'contract_id' => $contract->id,
+            'work_type_id' => $workType->id,
+            'work_date' => $workDate,
+            'work_type' => $workType->name,
+            'unit' => $workType->unit,
+            'daily_quantity' => $quantity,
+        ]);
+    }
+
+    $response = $this->actingAs($user)->get(route('reports.index'));
+
+    $response->assertOk()
+        ->assertSee('حفر cumulative')
+        ->assertSee('خرسانة cumulative')
+        ->assertSee('دهان cumulative')
+        ->assertSee('35.000')
+        ->assertSee('8.000')
+        ->assertSee('150.000')
+        ->assertSee('m³')
+        ->assertSee('m²')
+        ->assertSee('value="حفر cumulative"', false);
+
+    $this->actingAs($user)
+        ->get(route('reports.print'))
+        ->assertOk()
+        ->assertSee('حفر cumulative')
+        ->assertSee('35.000')
+        ->assertSee('150.000');
+
+    $totalService = app(DailyWorkTotalService::class);
+    expect($totalService->cumulativeForContract($contract->id, $excavation->name, $excavation->unit, '2025-02-02'))->toBe(35.0);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertSee('حفر cumulative')
+        ->assertSee('خرسانة cumulative')
+        ->assertSee('دهان cumulative');
+});
+
+it('hides deactivated work types from new entries and retains them in historical records', function () {
+    $user = User::factory()->create();
+    $workType = WorkType::create([
+        'name' => 'نوع عمل متوقف',
+        'unit' => 'طن',
+        'is_active' => false,
+    ]);
+    $contract = Contract::create([
+        'contract_number' => '107',
+        'contract_name' => 'عقد نوع متوقف',
+        'supervisor_name' => 'المشرف',
+        'executing_company' => 'شركة التنفيذ',
+        'assignment_date' => '2025-01-10',
+    ]);
+    $dailyWork = DailyWork::create([
+        'contract_id' => $contract->id,
+        'work_type_id' => $workType->id,
+        'work_date' => '2025-02-01',
+        'work_type' => $workType->name,
+        'unit' => $workType->unit,
+        'daily_quantity' => 10,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('daily-works.create'))
+        ->assertOk()
+        ->assertDontSee('value="'.$workType->id.'" data-unit="طن"', false);
+
+    $this->actingAs($user)
+        ->get(route('daily-works.edit', $dailyWork))
+        ->assertOk()
+        ->assertSee('value="'.$workType->id.'" data-unit="طن" selected', false);
+
+    $this->actingAs($user)
+        ->get(route('daily-works.show', $dailyWork))
+        ->assertOk()
+        ->assertSee('نوع عمل متوقف')
+        ->assertSee('طن');
+
+    $this->actingAs($user)
+        ->post(route('daily-works.store'), [
+            'contract_id' => $contract->id,
+            'work_date' => '2025-02-02',
+            'work_type_id' => $workType->id,
+            'daily_quantity' => 5,
+        ])
+        ->assertSessionHasErrors('work_type_id');
+
+    $this->actingAs($user)
+        ->get(route('reports.index'))
+        ->assertOk()
+        ->assertSee('نوع عمل متوقف');
+
+    $this->actingAs($user)
+        ->get(route('work-types.index'))
+        ->assertOk()
+        ->assertSee('نوع عمل متوقف')
+        ->assertSee('غير نشط');
 });
 
 it('calculates cumulative quantities by contract and work type without mixing units', function () {
@@ -203,8 +418,7 @@ it('stores uploaded photos in public storage and keeps database records', functi
     $response = $this->actingAs($user)->post(route('daily-works.store'), [
         'contract_id' => $contract->id,
         'work_date' => '2025-03-16',
-        'work_type' => 'قشط الزفت المهترئ ٥سم',
-        'unit' => 'متر مربع',
+        'work_type_id' => WorkType::query()->where('name', 'قشط الزفت المهترئ ٥سم')->value('id'),
         'daily_quantity' => 125.5,
         'details' => 'اختبار رفع صور',
         'photos' => [
@@ -243,33 +457,23 @@ it('renders the work types with their mapped units on create and edit forms', fu
     ]);
     $dailyWork = DailyWork::create([
         'contract_id' => $contract->id,
+        'work_type_id' => WorkType::query()->where('name', 'قشط الزفت المهترئ ٥سم')->value('id'),
         'work_date' => '2025-03-21',
         'work_type' => 'قشط الزفت المهترئ ٥سم',
         'unit' => 'متر مربع',
         'daily_quantity' => 10,
     ]);
-    $expectedWorkTypeUnits = [
-        'قشط الزفت المهترئ ٥سم' => 'متر مربع',
-        'قشط الزفت المهترئ ١١سم' => 'متر مربع',
-        'تقديم ومد ودحي مجبول اسفلتي اهتراء سماكة ٥ سم' => 'متر مكعب',
-        'تقديم ومد ودحي مجبول اسفلتي اساس سماكة ٦سم' => 'متر مكعب',
-        'تقديم ومد ودحي مجبول اسفلتي اساس سماكة ٧سم' => 'متر مكعب',
-        'تقديم ومد ودحي مجبول اسفلتي بمجابل حرارية' => 'متر مكعب',
-        'قص وترقيع بالمجبول الاسفلتي' => 'متر مكعب',
-        'تقديم ورش مانع اسفلتي (ام سي زيرو) لزوم طبقة لاصقة' => 'متر مربع',
-        'طبقة تشرب(ام سي زيرو)' => 'متر مربع',
-        'ترحيل' => 'متر مكعب',
-        'تسوية بالمجبول الاسفلتي' => 'متر مكعب',
-        'تسوية جوانب الطريق بالكريدر' => 'متر مربع',
-        'استبدال طبقات اساس بحص مكسر' => 'متر مكعب',
-        'استبدال طبقات ما تحت اساس بحص مكسر' => 'متر مكعب',
-        'استبدال وصيانة حواجز بيتونية مكسرة' => 'متر طولي',
-    ];
+    $expectedWorkTypeUnits = WorkType::query()
+        ->where('is_active', true)
+        ->orderBy('name')
+        ->get()
+        ->mapWithKeys(fn (WorkType $workType) => [$workType->name => $workType->unit])
+        ->all();
 
     foreach ([
-        route('daily-works.create'),
-        route('daily-works.edit', $dailyWork),
-    ] as $url) {
+        [route('daily-works.create'), 'unit-create'],
+        [route('daily-works.edit', $dailyWork), 'unit-edit'],
+    ] as [$url, $unitInputId]) {
         $response = $this->actingAs($user)->get($url);
 
         $response->assertOk();
@@ -277,24 +481,17 @@ it('renders the work types with their mapped units on create and edit forms', fu
         $document = new DOMDocument;
         $document->loadHTML($response->getContent());
         $xpath = new DOMXPath($document);
-        $workTypeOptions = $xpath->query('//select[@name="work_type"]/option[@data-unit]');
+        $workTypeOptions = $xpath->query('//select[@name="work_type_id"]/option[@data-unit]');
         $renderedWorkTypeUnits = [];
 
         foreach ($workTypeOptions as $option) {
-            $renderedWorkTypeUnits[$option->getAttribute('value')] = $option->getAttribute('data-unit');
+            $renderedWorkTypeUnits[trim($option->textContent)] = $option->getAttribute('data-unit');
         }
 
         expect($renderedWorkTypeUnits)->toBe($expectedWorkTypeUnits);
 
-        $unitOptions = $xpath->query('//select[@name="unit"]/option');
-        $renderedUnits = [];
-
-        foreach ($unitOptions as $option) {
-            $renderedUnits[] = $option->getAttribute('value');
-        }
-
-        expect($renderedUnits)->toBe(['', 'متر', 'متر مربع', 'متر مكعب', 'متر طولي']);
-        $response->assertSee('data-auto-select-unit="true"', false);
+        $response->assertSee('id="'.$unitInputId.'"', false)
+            ->assertSee('readonly', false);
     }
 });
 
@@ -312,8 +509,7 @@ it('accepts linear metres as the unit for broken concrete barrier maintenance', 
         ->post(route('daily-works.store'), [
             'contract_id' => $contract->id,
             'work_date' => '2025-03-23',
-            'work_type' => 'استبدال وصيانة حواجز بيتونية مكسرة',
-            'unit' => 'متر طولي',
+            'work_type_id' => WorkType::query()->where('name', 'استبدال وصيانة حواجز بيتونية مكسرة')->value('id'),
             'daily_quantity' => 5,
         ])
         ->assertRedirect(route('daily-works.index'))
@@ -335,11 +531,17 @@ it('keeps saved work types editable after they are removed from the new-work opt
         'executing_company' => 'شركة التنفيذ',
         'assignment_date' => '2025-03-24',
     ]);
+    $workType = WorkType::create([
+        'name' => 'قشط الزفت المهترئ',
+        'unit' => 'متر',
+        'is_active' => false,
+    ]);
     $dailyWork = DailyWork::create([
         'contract_id' => $contract->id,
+        'work_type_id' => $workType->id,
         'work_date' => '2025-03-25',
-        'work_type' => 'قشط الزفت المهترئ',
-        'unit' => 'متر',
+        'work_type' => $workType->name,
+        'unit' => $workType->unit,
         'daily_quantity' => 10,
     ]);
 
@@ -347,8 +549,7 @@ it('keeps saved work types editable after they are removed from the new-work opt
         ->put(route('daily-works.update', $dailyWork), [
             'contract_id' => $contract->id,
             'work_date' => '2025-03-26',
-            'work_type' => 'قشط الزفت المهترئ',
-            'unit' => 'متر',
+            'work_type_id' => $workType->id,
             'daily_quantity' => 12,
         ])
         ->assertRedirect(route('daily-works.index'))
@@ -432,8 +633,7 @@ it('updates daily work fields successfully', function () {
         ->put(route('daily-works.update', $dailyWork), [
             'contract_id' => $contract->id,
             'work_date' => '2025-05-17',
-            'work_type' => 'ترحيل',
-            'unit' => 'متر مكعب',
+            'work_type_id' => WorkType::query()->where('name', 'ترحيل')->value('id'),
             'daily_quantity' => 12.5,
             'details' => 'بعد التعديل',
         ])

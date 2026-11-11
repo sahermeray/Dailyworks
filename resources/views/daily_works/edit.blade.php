@@ -27,23 +27,15 @@
                 </div>
                 <div class="col-md-4">
                     <label class="form-label">نوع العمل</label>
-                    <select name="work_type" id="work-type-edit" class="form-select" data-auto-select-unit="{{ old('unit') === null ? 'true' : 'false' }}" required>
-                        @if (! array_key_exists($dailyWork->work_type, $workTypeUnits))
-                            <option value="{{ $dailyWork->work_type }}" {{ old('work_type', $dailyWork->work_type) == $dailyWork->work_type ? 'selected' : '' }}>{{ $dailyWork->work_type }}</option>
-                        @endif
-                        @foreach ($workTypeUnits as $type => $unit)
-                            <option value="{{ $type }}" data-unit="{{ $unit }}" {{ old('work_type', $dailyWork->work_type) == $type ? 'selected' : '' }}>{{ $type }}</option>
+                    <select name="work_type_id" id="work-type-edit" class="form-select" required>
+                        @foreach ($workTypes as $workType)
+                            <option value="{{ $workType->id }}" data-unit="{{ $workType->unit }}" {{ old('work_type_id', $dailyWork->work_type_id) == $workType->id ? 'selected' : '' }}>{{ $workType->name }}</option>
                         @endforeach
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">الوحدة</label>
-                    <select name="unit" id="unit-edit" class="form-select">
-                        <option value="">فارغة</option>
-                        @foreach ($units as $unit)
-                            <option value="{{ $unit }}" {{ old('unit', $dailyWork->unit) == $unit ? 'selected' : '' }}>{{ $unit }}</option>
-                        @endforeach
-                    </select>
+                    <input type="text" id="unit-edit" class="form-control" value="{{ $workTypes->firstWhere('id', old('work_type_id', $dailyWork->work_type_id))?->unit }}" readonly>
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">الكمية اليومية</label>

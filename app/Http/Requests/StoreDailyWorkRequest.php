@@ -2,8 +2,8 @@
 
 namespace App\Http\Requests;
 
-use App\Models\DailyWork;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreDailyWorkRequest extends FormRequest
 {
@@ -17,8 +17,7 @@ class StoreDailyWorkRequest extends FormRequest
         return [
             'contract_id' => ['required', 'exists:contracts,id'],
             'work_date' => ['required', 'date'],
-            'work_type' => ['required', 'string', 'in:'.implode(',', array_keys(DailyWork::WORK_TYPE_UNITS))],
-            'unit' => ['nullable', 'string', 'in:'.implode(',', DailyWork::UNITS)],
+            'work_type_id' => ['required', Rule::exists('work_types', 'id')->where('is_active', true)],
             'daily_quantity' => ['nullable', 'numeric', 'min:0'],
             'details' => ['nullable', 'string', 'max:2000'],
             'photos' => ['nullable', 'array'],

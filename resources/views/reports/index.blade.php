@@ -10,20 +10,29 @@
 
     <div class="card p-4 mb-4">
         <form method="GET" action="{{ route('reports.index') }}" class="row g-3 align-items-end" data-turbo="false">
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">تاريخ البداية</label>
                 <input type="date" name="start_date" value="{{ request('start_date') }}" class="form-control">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label class="form-label">تاريخ النهاية</label>
                 <input type="date" name="end_date" value="{{ request('end_date') }}" class="form-control">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label class="form-label">العقد</label>
                 <select name="contract_id" class="form-select">
                     <option value="">الكل</option>
                     @foreach ($contracts as $contract)
                         <option value="{{ $contract->id }}" {{ request('contract_id') == $contract->id ? 'selected' : '' }}>{{ $contract->contract_number }} - {{ $contract->contract_name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">نوع العمل</label>
+                <select name="work_type" class="form-select">
+                    <option value="">الكل</option>
+                    @foreach ($workTypeNames as $workTypeName)
+                        <option value="{{ $workTypeName }}" {{ ($filters['work_type'] ?? '') === $workTypeName ? 'selected' : '' }}>{{ $workTypeName }}</option>
                     @endforeach
                 </select>
             </div>
